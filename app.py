@@ -41,9 +41,9 @@ if api_key:
                     "Begründung: [Ein kurzer, pragmatischer Satz, warum das Produkt optisch passt und wo eventuell geschätzt werden musste, z. B. beim Volumen.]"
                 )
                 
-                # Aufruf ohne den blockierenden 'thinking_level'-Parameter
+                # Wir wechseln auf das stabilere Hauptversions-Modell gemini-3.6-flash, um Serverstaus zu meiden
                 response = client.models.generate_content(
-                    model="gemini-3.8-flash",
+                    model="gemini-3.6-flash",
                     contents=[image, "Analysiere diesen Artikel und liste die besten Kandidaten auf."],
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction
