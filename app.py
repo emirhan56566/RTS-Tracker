@@ -41,14 +41,12 @@ if api_key:
                     "Begründung: [Ein kurzer, pragmatischer Satz, warum das Produkt optisch passt und wo eventuell geschätzt werden musste, z. B. beim Volumen.]"
                 )
                 
-                # Update auf das neueste stabile Produktionsmodell gemini-3.8-flash
+                # Aufruf ohne den blockierenden 'thinking_level'-Parameter
                 response = client.models.generate_content(
                     model="gemini-3.8-flash",
                     contents=[image, "Analysiere diesen Artikel und liste die besten Kandidaten auf."],
                     config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        # Für Gemini 3 Modelle steuern wir die Präzision über das thinking_level
-                        thinking_level="medium" 
+                        system_instruction=system_instruction
                     ),
                 )
                 
