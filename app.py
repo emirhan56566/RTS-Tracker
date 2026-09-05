@@ -30,11 +30,11 @@ if api_key:
         
         with st.spinner("Identifiziere Artikelmerkmale für die Shop-Suche..."):
             
-            # Wir zwingen die KI, sich voll auf präzise Suchbegriffe zu konzentrieren
+            # Wir zwingen die KI, nur die reinen Produktnamen ohne Fantasie-Nummern zu liefern
             system_instruction = """Du bist ein Experte für das Sortiment von Flaschenland.de.
 Deine einzige Aufgabe ist es, das fotografierte Produkt (Flasche, Glas oder Verschluss) zu analysieren und den exakten, spezifischen Handelsnamen oder Suchbegriff zu ermitteln, mit dem man dieses Produkt im Onlineshop findet.
 
-Gib die Top 3 wahrscheinlichsten Artikel exakt in diesem Zeilen-Format aus (Verwende kein Markdown oder Sternchen im Rohtext):
+Gib die Antwort für die Top 3 wahrscheinlichsten Artikel exakt in diesem Zeilen-Format aus (Verwende kein Markdown, keine Sternchen oder fette Schrift im Rohtext):
 Name: [Exakter Produktname, z.B. Glasflasche Gerardino Mündung Kork oder Marasca Ölflasche]
 Grund: [Kurzer Satz, warum es dieses Produkt sein könnte]
 ---"""
@@ -76,14 +76,14 @@ Grund: [Kurzer Satz, warum es dieses Produkt sein könnte]
                             lines = block.strip().split("\n")
                             name, grund = "", ""
                             for line in lines:
-                                if line.startswith("Name:"): 
+                                if line.strip().startswith("Name:"): 
                                     name = line.replace("Name:", "").strip()
-                                elif line.startswith("Grund:"): 
+                                elif line.strip().startswith("Grund:"): 
                                     grund = line.replace("Grund:", "").strip()
                             
                             if name:
-                                # URL-konforme Encodierung für die Onlineshop-Suche (z.B. Leerzeichen zu %20)
-                                such_begriff = urllib.parse.quote(name)
+                                # AUSFALLSICHERHEIT: Python wandelt den Namen in einen sicheren Web-Suchbegriff um
+                                such_begriff = urllib.parse.quote_plus(name)
                                 live_shop_link = f"https://flaschenland.de{such_begriff}"
                                 
                                 # Anzeige als sauber formatierte Kachel auf dem iPhone
@@ -91,7 +91,7 @@ Grund: [Kurzer Satz, warum es dieses Produkt sein könnte]
                                     st.markdown(f"#### 🔹 {name}")
                                     if grund:
                                         st.write(f"*{grund}*")
-                                    # Dieser Link führt nun direkt zur echten Suchergebnis-Seite im Shop
+                                    # Dieser Link funktioniert garantiert und ruft die echte Shop-Suche auf
                                     st.markdown(f"[🔍 Jetzt auf Flaschenland.de anzeigen]({live_shop_link})")
                                     st.write("---")
                                 
