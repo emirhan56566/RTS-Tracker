@@ -71,13 +71,16 @@ Grund: [Kurzer Satz, warum es dieses Produkt sein könnte]
                     # Zeigt die Ergebnisse als reinen, leicht markierbaren Text an
                     st.text_area("Ergebnisse (hier gedrückt halten zum Kopieren):", value=response.text, height=250)
                     
-                    # --- IHRE GEWÜNSCHTE ANLEITUNG & LINK ---
+                    # --- IHRE ANLEITUNG & ERGÄNZTER HINWEIS ---
                     st.write("---")
                     st.markdown("#### 🛠️ So suchen Sie den Artikel im Shop:")
                     st.markdown("-> auf vorgeschlagene Artikelbezeichnung lange gedrückt halten und somit markieren")
                     st.markdown("-> dann auf kopieren klicken")
                     st.markdown("-> auf [Flaschenland.de](https://flaschenland.de) link klicken")
                     st.markdown("-> lange gedrückthalten auf flaschenland.de Suchmaschine auf einsetzen/einfügen klicken und nach passenden Artikel suchen.")
+                    
+                    # Der neue wichtige Hinweis
+                    st.info("⚠️ **Wichtiger Hinweis:** Bei der recherchierten und vorgeschlagenen Füllmenge kann es zu Abweichungen kommen. Bitte fokussieren Sie sich bei der Suche primär auf die vorgeschlagenen Artikelbezeichnungen (Modellserien), um alle verfügbaren Größen im Shop zu sehen.")
                     
                     erfolgreich = True
                     break
