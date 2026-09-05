@@ -1,13 +1,12 @@
-import streamlit as st
+ import streamlit as st
 from PIL import Image
 from google import genai
 from google.genai import types
-import urllib.parse
 
-st.set_page_config(page_title="Flaschenland Scanner", page_icon="🍾")
+st.set_page_config(page_title="Flaschenland Scanner", page_icon="🍾", layout="wide")
 
-st.title("🍾 Flaschenland.de Live-Such-Scanner")
-st.write("Fotografieren Sie ein Produkt, um es sofort im Flaschenland-Shop zu suchen.")
+st.title("🍾 Flaschenland.de Live-Scanner & Recherche-Center")
+st.write("Fotografieren Sie ein Produkt und recherchieren Sie direkt im eingebetteten Onlineshop darunter.")
 
 # API Key Abfrage
 api_key = st.text_input("Gemini API Key eingeben", type="password")
@@ -28,15 +27,14 @@ if api_key:
         image = Image.open(img_file)
         st.image(image, caption="Aufgenommenes Bild", use_container_width=True)
         
-        with st.spinner("Identifiziere Artikelmerkmale für die Shop-Suche..."):
+        with st.spinner("Identifiziere Artikelmerkmale für Sie..."):
             
-            # Wir zwingen die KI, nur die reinen Produktnamen ohne Fantasie-Nummern zu liefern
             system_instruction = """Du bist ein Experte für das Sortiment von Flaschenland.de.
-Deine einzige Aufgabe ist es, das fotografierte Produkt (Flasche, Glas oder Verschluss) zu analysieren und den exakten, spezifischen Handelsnamen oder Suchbegriff zu ermitteln, mit dem man dieses Produkt im Onlineshop findet.
+Deine Aufgabe ist es, das fotografierte Produkt zu analysieren und dem Nutzer präzise Suchbegriffe für den Shop zu liefern.
 
-Gib die Antwort für die Top 3 wahrscheinlichsten Artikel exakt in diesem Zeilen-Format aus (Verwende kein Markdown, keine Sternchen oder fette Schrift im Rohtext):
-Name: [Exakter Produktname, z.B. Glasflasche Gerardino Mündung Kork oder Marasca Ölflasche]
-Grund: [Kurzer Satz, warum es dieses Produkt sein könnte]
+Gib die Top 3 wahrscheinlichsten Artikel exakt in diesem Zeilen-Format aus (Kein Markdown, keine Sternchen):
+Vorgeschlagener Suchbegriff: [Exakter Name, z.B. Glasflasche Gerardino Mündung Kork]
+Grund für den Treffer: [Kurzer Satz, warum es dieses Produkt sein könnte]
 ---"""
 
             # Die bewährte 10-Stufen-Ausfallsicherung
@@ -60,41 +58,15 @@ Grund: [Kurzer Satz, warum es dieses Produkt sein könnte]
                 try:
                     response = client.models.generate_content(
                         model=modell_name,
-                        contents=[image, "Ermittle die präzisesten Suchbegriffe für dieses Produkt."],
+                        contents=[image, "Ermittle die präzisesten Suchbegriffe."],
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction
                         ),
                     )
                     
-                    st.success(f"Produktmerkmale erfolgreich erkannt!")
-                    st.markdown("### 🔍 Klicken Sie auf einen Treffer, um ihn im Shop zu öffnen:")
-                    
-                    # Zerlege die Antwort in einzelne Artikel
-                    artikel_bloecke = response.text.split("---")
-                    for block in artikel_bloecke:
-                        if "Name:" in block:
-                            lines = block.strip().split("\n")
-                            name, grund = "", ""
-                            for line in lines:
-                                if line.strip().startswith("Name:"): 
-                                    name = line.replace("Name:", "").strip()
-                                elif line.strip().startswith("Grund:"): 
-                                    grund = line.replace("Grund:", "").strip()
-                            
-                            if name:
-                                # AUSFALLSICHERHEIT: Python wandelt den Namen in einen sicheren Web-Suchbegriff um
-                                such_begriff = urllib.parse.quote_plus(name)
-                                live_shop_link = f"https://flaschenland.de{such_begriff}"
-                                
-                                # Anzeige als sauber formatierte Kachel auf dem iPhone
-                                with st.container():
-                                    st.markdown(f"#### 🔹 {name}")
-                                    if grund:
-                                        st.write(f"*{grund}*")
-                                    # Dieser Link funktioniert garantiert und ruft die echte Shop-Suche auf
-                                    st.markdown(f"[🔍 Jetzt auf Flaschenland.de anzeigen]({live_shop_link})")
-                                    st.write("---")
-                                
+                    st.success("Produktmerkmale erfolgreich erkannt!")
+                    st.markdown("### 📋 Erkannte Suchbegriffe für das Shop-Fenster unten:")
+                    st.write(response.text)
                     erfolgreich = True
                     break
                     
@@ -104,5 +76,18 @@ Grund: [Kurzer Satz, warum es dieses Produkt sein könnte]
             
             if not erfolgreich:
                 st.error(f"Fehler: {letzter_fehler}")
+                
+    # --- NEU: EINGEBETTETES ONLINESHOP-FENSTER (IFRAME) ---
+    st.write("---")
+    st.markdown("### 🏪 Flaschenland.de Live-Recherche")
+    st.info("Nutzen Sie dieses Fenster, um die oben erkannten Begriffe direkt einzugeben und Artikelnummern abzugleichen.")
+    
+    # Der Onlineshop wird direkt in einem großen, scrollbaren Kasten in Ihrer App geladen
+    shop_url = "https://flaschenland.de"
+    st.components.v1.html(
+        f'<iframe src="{shop_url}" width="100%" height="800px" style="border:none; border-radius:10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1);"></iframe>',
+        height=820
+    )
+
 else:
-    st.info("Bitte tragen Sie oben Ihren Gemini API Key ein, um den Scanner zu starten.")
+    st.info("Bitte tragen Sie oben Ihren Gemini API Key ein, um den Scanner und das Recherche-Center zu starten.")
