@@ -42,9 +42,9 @@ if api_key:
         
         with st.spinner("Gleiche Bild mit Flaschenland-Datenbank ab..."):
             
-            # Der Prompt füttert die KI nun mit den ECHTEN Datenbank-Daten
-            system_instruction = ff"""Du bist eine smarte KI zur visuellen Artikelidentifikation für das Sortiment von Flaschenland.de.
-Deine Aufgabe ist es, fotografierte Artikel zu analysieren und den passendsten Treffer aus der unten bereitgestellten Produktdatenbank zuzuordnen.
+            # FEHLER BEHOBEN: Nur noch ein 'f' und eckige Klammern im Text
+            system_instruction = f"""Du bist eine smarte KI zur visuellen Artikelidentifikation für das Sortiment von Flaschenland.de.
+Deine Aufgabe ist es, fotografierte Artikel zu analysieren und den passendsten Treffer aus dem unten bereitgestellten Sortiment zuzuordnen.
 
 {PRODUKT_DATENBANK}
 
