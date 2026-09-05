@@ -5,8 +5,21 @@ from google.genai import types
 
 st.set_page_config(page_title="Flaschenland Scanner", page_icon="🍾")
 
-st.title("🍾 Flaschenland.de Scanner (10-Stufen-Ausfallsicherung)")
+st.title("🍾 Flaschenland.de Scanner (Mit Produkt-Datenbank)")
 st.write("Fotografieren Sie einen Artikel oder wählen Sie ein Bild aus Ihrer Galerie.")
+
+# 1. IHRE PRODUKT-DATENBANK (Flaschenland Sortiment)
+# Tragen Sie hier Ihre echten Artikelnamen und Artikelnummern ein:
+PRODUKT_DATENBANK = """
+Hier ist die offizielle Produktliste von Flaschenland.de mit korrekten SKUs:
+- Artikelname: Bordeauxflasche 750ml grün | Artikelnummer: 1004123
+- Artikelname: Facetten-Glaskrug 1 Liter klar | Artikelnummer: 1005221
+- Artikelname: Bügelflasche 500ml antik | Artikelnummer: 1003984
+- Artikelname: Marasca Ölflasche 250ml eckig | Artikelnummer: 1001105
+- Artikelname: Sturzglas 230ml mit Twist-Off Mündung | Artikelnummer: 1008741
+- Artikelname: Kronenkorken 26mm Gold (100er Pack) | Artikelnummer: 1002244
+- Artikelname: Dorica Olivenölflasche 500ml | Artikelnummer: 1001150
+"""
 
 # API Key Abfrage
 api_key = st.text_input("Gemini API Key eingeben", type="password")
@@ -27,31 +40,26 @@ if api_key:
         image = Image.open(img_file)
         st.image(image, caption="Zu analysierendes Bild", use_container_width=True)
         
-        with st.spinner("Analysiere Sortiment von Flaschenland.de..."):
+        with st.spinner("Gleiche Bild mit Flaschenland-Datenbank ab..."):
             
-            # STRENGERE REGELN FÜR DIE ARTIKELNUMMER (MUSS MIT 100 BEGINNEN)
-            system_instruction = (
-                "Du bist eine smarte KI zur visuellen Artikelidentifikation für das Sortiment von Flaschenland.de. "
-                "Deine Aufgabe ist es, fotografierte Artikel zu analysieren und die passendsten Treffer aus dem Shop vorzuschlagen. "
-                "Du arbeitest als hilfreicher Assistent: Anstatt bei fehlenden Details (wie einem Maßstab) abzubrechen, "
-                "zeigst du die besten verfügbaren Optionen und Wahrscheinlichkeiten auf.\n\n"
-                "WICHTIGE REGEL FÜR ARTIKELNUMMERN:\n"
-                "- Die Artikelnummern (SKUs) bei Flaschenland.de beginnen ausnahmslos IMMER mit den Ziffern '100' (z.B. 1001234 oder 1005678).\n"
-                "- Gib NIEMALS eine Artikelnummer aus, die nicht mit '100' beginnt! Erfinde keine zufälligen Nummern.\n"
-                "- Wenn du die exakte Nummer basierend auf dem Sortiment nicht weißt, schreibe '100 (spezifische SKU unbekannt)'.\n\n"
-                "Regeln für die Analyse:\n"
-                "- Visuelle Merkmale priorisieren: Analysiere die Kategorie (Flasche, Glas, Verschluss) und nutze Form, Farbe, Material und Mündung, um das Modell bestmöglich einzugrenzen.\n"
-                "- Fehlender Maßstab: Wenn das genaue Volumen nicht direkt erkennbar ist, ist das kein Problem. Schlage einfach die gängigsten oder wahrscheinlichsten Größen der erkannten Modellserie vor.\n"
-                "- Fokus auf Flaschenland.de: Ziehe für deine Vorschläge das Sortiment, die Bezeichnungen und die korrekten Artikelnummern heran.\n\n"
-                "Verbindliches Ausgabeformat:\n"
-                "Gib nach jeder Bildanalyse automatisch deine besten Kandidaten (z. B. die Top 3 bis Top 5) in exakt dieser Struktur untereinander aus:\n"
-                "Artikelname: [Offizieller Name des Artikels]\n"
-                "Artikelnummer: [Exakte SKU, MUSS mit 100 beginnen]\n"
-                "Übereinstimmung: [XX] %\n"
-                "Begründung: [Ein kurzer, pragmatischer Satz, warum das Produkt optisch passt und wo eventuell geschätzt werden musste, z. B. beim Volumen.]"
-            )
+            # Der Prompt füttert die KI nun mit den ECHTEN Datenbank-Daten
+            system_instruction = ff"""Du bist eine smarte KI zur visuellen Artikelidentifikation für das Sortiment von Flaschenland.de.
+Deine Aufgabe ist es, fotografierte Artikel zu analysieren und den passendsten Treffer aus der unten bereitgestellten Produktdatenbank zuzuordnen.
 
-            # Die 10 Modelle von der neuesten Spitzenklasse bis zum sichersten Ausfallschutz
+{PRODUKT_DATENBANK}
+
+Regeln für die Analyse:
+- Vergleiche das Foto intensiv mit den Produkten aus der Produktliste.
+- Wähle nur Artikelnummern aus, die oben in der Liste stehen und mit '100' beginnen.
+- Wenn das genaue Volumen nicht erkennbar ist, wähle das wahrscheinlichste Modell aus der Liste.
+
+Verbindliches Ausgabeformat:
+Gib nach jeder Bildanalyse automatisch deine besten Kandidaten (z. B. die Top 3) in exakt dieser Struktur untereinander aus:
+Artikelname: [Name aus der obigen Liste]
+Artikelnummer: [Passende Artikelnummer aus der Liste]
+Übereinstimmung: [XX] %
+Begründung: [Warum passt dieses Produkt optisch zum Foto?]"""
+
             modelle = [
                 "gemini-3.8-flash",       
                 "gemini-3.7-flash",       
@@ -68,12 +76,11 @@ if api_key:
             erfolgreich = False
             letzter_fehler = ""
 
-            # Automatische Kaskade
             for index, modell_name in enumerate(modelle):
                 try:
                     response = client.models.generate_content(
                         model=modell_name,
-                        contents=[image, "Analysiere diesen Artikel. Achte streng darauf, dass die Artikelnummern mit 100 beginnen!"],
+                        contents=[image, "Finde diesen Artikel in der bereitgestellten Flaschenland-Produktliste."],
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction
                         ),
@@ -88,9 +95,7 @@ if api_key:
                     letzter_fehler = str(e)
                     continue
             
-            if notGrid := erfolgreich:
-                pass
             if not erfolgreich:
-                st.error(f"Keines der 10 Modelle konnte antworten. Letzte Meldung: {letzter_fehler}")
+                st.error(f"Fehler: {letzter_fehler}")
 else:
     st.info("Bitte tragen Sie oben Ihren Gemini API Key ein, um den Scanner zu starten.")
