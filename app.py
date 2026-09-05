@@ -3,16 +3,20 @@ from PIL import Image
 from google import genai
 from google.genai import types
 
-st.set_page_config(page_title="Flaschenland Scanner", page_icon="🍾", layout="wide")
+st.set_page_config(page_title="Flaschenland Scanner", page_icon="🍾")
 
-st.title("🍾 Flaschenland.de Live-Scanner & Recherche-Center")
-st.write("Fotografieren Sie ein Produkt und recherchieren Sie direkt im eingebetteten Onlineshop darunter.")
+st.title("🍾 Flaschenland.de Text-Scanner")
+st.write("Fotografieren Sie einen Artikel oder wählen Sie ein Bild aus Ihrer Galerie.")
 
+# API Key Abfrage
 api_key = st.text_input("Gemini API Key eingeben", type="password")
 
 if api_key:
     client = genai.Client(api_key=api_key)
+    
+    # Auswahl der Bildquelle
     modus = st.radio("Bildquelle auswählen:", ("📸 Kamera nutzen", "🖼️ Aus Galerie laden"))
+    
     img_file = None
     if modus == "📸 Kamera nutzen":
         img_file = st.camera_input("Artikel fotografieren")
@@ -21,16 +25,20 @@ if api_key:
 
     if img_file:
         image = Image.open(img_file)
-        st.image(image, caption="Aufgenommenes Bild", use_container_width=True)
-        with st.spinner("Identifiziere Artikelmerkmale für Sie..."):
+        st.image(image, caption="Zu analysierendes Bild", use_container_width=True)
+        
+        with st.spinner("Analysiere Bildmerkmale..."):
+            
+            # Die KI liefert nur noch saubere Textnamen zum Kopieren
             system_instruction = """Du bist ein Experte für das Sortiment von Flaschenland.de.
-Deine Aufgabe ist es, das fotografierte Produkt zu analysieren und dem Nutzer präzise Suchbegriffe für den Shop zu liefern.
+Deine Aufgabe ist es, das fotografierte Produkt exakt zu analysieren und dem Nutzer die 3 passendsten Artikelbezeichnungen aus dem Shop als reinen Text auszugeben.
 
-Gib die Top 3 wahrscheinlichsten Artikel exakt in diesem Zeilen-Format aus (Kein Markdown, keine Sternchen):
-Vorgeschlagener Suchbegriff: [Exakter Name, z.B. Glasflasche Gerardino Mündung Kork]
-Grund für den Treffer: [Kurzer Satz, warum es dieses Produkt sein könnte]
+Gib die Antwort für die Top 3 Treffer exakt in diesem Format aus (Verwende keine Sternchen oder fette Schrift im Rohtext):
+Artikelbezeichnung: [Exakter Name des Artikels aus dem Shop]
+Grund: [Kurzer Satz, warum es dieses Produkt sein könnte]
 ---"""
 
+            # Die bewährte 10-Stufen-Ausfallsicherung
             modelle = [
                 "gemini-3.8-flash",       
                 "gemini-3.7-flash",       
@@ -43,6 +51,7 @@ Grund für den Treffer: [Kurzer Satz, warum es dieses Produkt sein könnte]
                 "gemini-2.5-flash",       
                 "gemini-2.5-flash-lite"   
             ]
+            
             erfolgreich = False
             letzter_fehler = ""
 
@@ -50,30 +59,34 @@ Grund für den Treffer: [Kurzer Satz, warum es dieses Produkt sein könnte]
                 try:
                     response = client.models.generate_content(
                         model=modell_name,
-                        contents=[image, "Ermittle die präzisesten Suchbegriffe."],
+                        contents=[image, "Ermittle die 3 passendsten Artikelbezeichnungen für dieses Produkt."],
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction
                         ),
                     )
-                    st.success("Produktmerkmale erfolgreich erkannt!")
-                    st.markdown("### 📋 Erkannte Suchbegriffe für das Shop-Fenster unten:")
-                    st.write(response.text)
+                    
+                    st.success("Analyse abgeschlossen!")
+                    st.markdown("### 📋 Vorgeschlagene Artikelbezeichnungen:")
+                    
+                    # Zeigt die Ergebnisse als reinen, leicht markierbaren Text an
+                    st.text_area("Ergebnisse (hier gedrückt halten zum Kopieren):", value=response.text, height=250)
+                    
+                    # --- IHRE GEWÜNSCHTE ANLEITUNG & LINK ---
+                    st.write("---")
+                    st.markdown("#### 🛠️ So suchen Sie den Artikel im Shop:")
+                    st.markdown("-> auf vorgeschlagene Artikelbezeichnung lange gedrückt halten und somit markieren")
+                    st.markdown("-> dann auf kopieren klicken")
+                    st.markdown("-> auf [Flaschenland.de](https://flaschenland.de) link klicken")
+                    st.markdown("-> lange gedrückthalten auf flaschenland.de Suchmaschine auf einsetzen/einfügen klicken und nach passenden Artikel suchen.")
+                    
                     erfolgreich = True
                     break
+                    
                 except Exception as e:
                     letzter_fehler = str(e)
                     continue
+            
             if not erfolgreich:
                 st.error(f"Fehler: {letzter_fehler}")
-                
-    st.write("---")
-    st.markdown("### 🏪 Flaschenland.de Live-Recherche")
-    st.info("Nutzen Sie dieses Fenster, um die oben erkannten Begriffe direkt einzugeben und Artikelnummern abzugleichen.")
-    shop_url = "https://flaschenland.de"
-    st.components.v1.html(
-        f'<iframe src="{shop_url}" width="100%" height="800px" style="border:none; border-radius:10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1);"></iframe>',
-        height=820
-    )
 else:
-    st.info("Bitte tragen Sie oben Ihren Gemini API Key ein, um den Scanner und das Recherche-Center zu starten.")
-
+    st.info("Bitte tragen Sie oben Ihren Gemini API Key ein, um den Scanner zu starten.")
