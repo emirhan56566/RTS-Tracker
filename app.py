@@ -12,13 +12,13 @@ st.write("Fotografieren Sie einen Artikel oder wählen Sie ein Bild aus Ihrer Ga
 # Tragen Sie hier bevorzugte Artikel ein, die zuerst abgeglichen werden sollen:
 PRODUKT_DATENBANK = """
 [START DATENBANK]
-- Artikelname: Bordeauxflasche 750ml grün | Artikelnummer: 1004123
-- Artikelname: Facetten-Glaskrug 1 Liter klar | Artikelnummer: 1005221
-- Artikelname: Bügelflasche 500ml antik | Artikelnummer: 1003984
-- Artikelname: Marasca Ölflasche 250ml eckig | Artikelnummer: 1001105
-- Artikelname: Sturzglas 230ml mit Twist-Off Mündung | Artikelnummer: 1008741
-- Artikelname: Kronenkorken 26mm Gold (100er Pack) | Artikelnummer: 1002244
-- Artikelname: Dorica Olivenölflasche 500ml | Artikelnummer: 1001150
+- Artikelname: Bordeauxflasche 750ml grün | Artikelnummer: 10004123
+- Artikelname: Facetten-Glaskrug 1 Liter klar | Artikelnummer: 10005221
+- Artikelname: Bügelflasche 500ml antik | Artikelnummer: 10003984
+- Artikelname: Marasca Ölflasche 250ml eckig | Artikelnummer: 10001105
+- Artikelname: Sturzglas 230ml mit Twist-Off Mündung | Artikelnummer: 10008741
+- Artikelname: Kronenkorken 26mm Gold (100er Pack) | Artikelnummer: 10002244
+- Artikelname: Dorica Olivenölflasche 500ml | Artikelnummer: 10001150
 [ENDE DATENBANK]
 """
 
@@ -43,7 +43,7 @@ if api_key:
         
         with st.spinner("Führe zweistufige Analyse durch (1. Datenbank -> 2. Onlineshop)..."):
             
-            # Zweistufiger Prompt: Erst Datenbank, dann Online-Shop
+            # Zweistufiger Prompt: Artikelnummern MÜSSEN mit 1000 beginnen
             system_instruction = f"""Du bist eine smarte KI zur visuellen Artikelidentifikation für das Sortiment von Flaschenland.de.
 Deine Aufgabe ist es, fotografierte Artikel in zwei aufeinanderfolgenden Schritten abzugleichen:
 
@@ -54,7 +54,10 @@ Wenn ja, nutze zwingend den Namen und die Artikelnummer aus dieser Liste.
 
 SCHRITT 2 (Sekundäre Priorität - Onlineshop-Abgleich):
 Falls das Produkt NICHT in der obigen Liste existiert oder ein anderes Volumen hat, nutze dein allgemeines Wissen über das Gesamtsortiment des offiziellen Onlineshops von Flaschenland.de.
-Generiere in diesem Fall den passendsten Artikelnamen und schätze die Artikelnummer ab. Jede Artikelnummer MUSS zwingend mit '100' beginnen!
+Generiere in diesem Fall den passendsten Artikelnamen und schätze die Artikelnummer ab. 
+
+STRANGE REGEL FÜR ARTIKELNUMMERN:
+Jede Artikelnummer MUSS zwingend mit den vier Ziffern '1000' beginnen (z.B. 1000123 oder 1000456)! Gib niemals Nummern aus, die mit anderen Zahlen starten.
 
 Allgemeine Regeln für die Analyse:
 - Visuelle Merkmale (Form, Farbe, Mündung, Verschlussart) priorisieren.
@@ -63,7 +66,7 @@ Allgemeine Regeln für die Analyse:
 Verbindliches Ausgabeformat:
 Gib nach der Bildanalyse automatisch deine besten Kandidaten (Top 3 bis Top 5) in exakt dieser Struktur untereinander aus:
 Artikelname: [Name des Artikels]
-Artikelnummer: [Exakte SKU, MUSS mit 100 beginnen]
+Artikelnummer: [Exakte SKU, MUSS mit 1000 beginnen]
 Quelle: [Entweder 'Datenbank' oder 'Onlineshop-Abgleich']
 Übereinstimmung: [XX] %
 Begründung: [Warum passt dieses Produkt optisch zum Foto?]"""
@@ -89,7 +92,7 @@ Begründung: [Warum passt dieses Produkt optisch zum Foto?]"""
                 try:
                     response = client.models.generate_content(
                         model=modell_name,
-                        contents=[image, "Analysiere dieses Bild gemäß der zweistufigen Systemanweisung."],
+                        contents=[image, "Analysiere dieses Bild gemäß der zweistufigen Systemanweisung. Alle Artikelnummern müssen mit 1000 beginnen."],
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction
                         ),
