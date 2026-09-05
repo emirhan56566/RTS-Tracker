@@ -2,22 +2,12 @@ import streamlit as st
 from PIL import Image
 from google import genai
 from google.genai import types
-import re
+import urllib.parse
 
 st.set_page_config(page_title="Flaschenland Scanner", page_icon="🍾")
 
-st.title("🍾 Flaschenland.de Direkt-Link Scanner")
-st.write("Fotografieren Sie einen Artikel, um die echte Artikelnummer und den passenden Direkt-Link zu erhalten.")
-
-# Hilfsfunktion zur Bereinigung der URLs auf dem iPhone
-def bereinige_url_text(text):
-    text = text.lower()
-    # Umlaute korrekt ersetzen
-    text = text.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-    # Sonderzeichen wie Anführungszeichen entfernen, Leerzeichen zu Bindestrichen machen
-    text = re.sub(r'[^a-z0-9\s-]', '', text)
-    text = re.sub(r'[\s-]+', '-', text)
-    return text.strip('-')
+st.title("🍾 Flaschenland.de Live-Such-Scanner")
+st.write("Fotografieren Sie ein Produkt, um es sofort im Flaschenland-Shop zu suchen.")
 
 # API Key Abfrage
 api_key = st.text_input("Gemini API Key eingeben", type="password")
@@ -36,25 +26,20 @@ if api_key:
 
     if img_file:
         image = Image.open(img_file)
-        st.image(image, caption="Zu analysierendes Bild", use_container_width=True)
+        st.image(image, caption="Aufgenommenes Bild", use_container_width=True)
         
-        with st.spinner("Analysiere Bild und generiere fehlerfreie Direkt-Links..."):
+        with st.spinner("Identifiziere Artikelmerkmale für die Shop-Suche..."):
             
-            # Der Prompt liefert strukturierte Rohdaten an Python
-            system_instruction = """Du bist eine smarte KI zur visuellen Artikelidentifikation für das Sortiment von Flaschenland.de.
-Deine Aufgabe ist es, fotografierte Artikel exakt zu analysieren und Rohdaten bereitzustellen.
+            # Wir zwingen die KI, sich voll auf präzise Suchbegriffe zu konzentrieren
+            system_instruction = """Du bist ein Experte für das Sortiment von Flaschenland.de.
+Deine einzige Aufgabe ist es, das fotografierte Produkt (Flasche, Glas oder Verschluss) zu analysieren und den exakten, spezifischen Handelsnamen oder Suchbegriff zu ermitteln, mit dem man dieses Produkt im Onlineshop findet.
 
-REGELN FÜR DIE AUSGABE:
-1. ARTIKELNAME: Nutze die offiziellen Bezeichnungen aus dem Flaschenland-Sortiment (z.B. '1000 ml Glasflasche Gerardino Mündung Kork').
-2. ARTIKELNUMMER: Jede Artikelnummer MUSS zwingend mit den Ziffern '1000' beginnen (z.B. 100031580). 
-
-Gib die Antwort für die Top 3 Treffer exakt in diesem Zeilen-Format aus, verwende KEIN Markdown oder fette Schrift im Rohtext:
-Name: [Name des Artikels]
-Nummer: [SKU startend mit 1000]
-Prozent: [XX]
-Grund: [Kurzer Satz zur Begründung]
+Gib die Top 3 wahrscheinlichsten Artikel exakt in diesem Zeilen-Format aus (Verwende kein Markdown oder Sternchen im Rohtext):
+Name: [Exakter Produktname, z.B. Glasflasche Gerardino Mündung Kork oder Marasca Ölflasche]
+Grund: [Kurzer Satz, warum es dieses Produkt sein könnte]
 ---"""
 
+            # Die bewährte 10-Stufen-Ausfallsicherung
             modelle = [
                 "gemini-3.8-flash",       
                 "gemini-3.7-flash",       
@@ -75,38 +60,40 @@ Grund: [Kurzer Satz zur Begründung]
                 try:
                     response = client.models.generate_content(
                         model=modell_name,
-                        contents=[image, "Analysiere das Bild und liefere die strukturierten Rohdaten."],
+                        contents=[image, "Ermittle die präzisesten Suchbegriffe für dieses Produkt."],
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction
                         ),
                     )
                     
-                    st.success(f"Analyse erfolgreich über Modell {index+1}/10 (`{modell_name}`)!")
-                    st.markdown("### 📋 Gefundene Artikel aus dem Shop:")
+                    st.success(f"Produktmerkmale erfolgreich erkannt!")
+                    st.markdown("### 🔍 Klicken Sie auf einen Treffer, um ihn im Shop zu öffnen:")
                     
-                    # Verarbeitung des KI-Textes in eine klickbare UI
+                    # Zerlege die Antwort in einzelne Artikel
                     artikel_bloecke = response.text.split("---")
                     for block in artikel_bloecke:
-                        if "Name:" in block and "Nummer:" in block:
+                        if "Name:" in block:
                             lines = block.strip().split("\n")
-                            name, nummer, prozent, grund = "", "", "", ""
+                            name, grund = "", ""
                             for line in lines:
-                                if line.startswith("Name:"): name = line.replace("Name:", "").strip()
-                                elif line.startswith("Nummer:"): nummer = line.replace("Nummer:", "").strip()
-                                elif line.startswith("Prozent:"): prozent = line.replace("Prozent:", "").strip()
-                                elif line.startswith("Grund:"): grund = line.replace("Grund:", "").strip()
+                                if line.startswith("Name:"): 
+                                    name = line.replace("Name:", "").strip()
+                                elif line.startswith("Grund:"): 
+                                    grund = line.replace("Grund:", "").strip()
                             
-                            if name and nummer:
-                                # Erstellung der fehlerfreien URL ohne Umlaute
-                                bereinigter_name = bereinige_url_text(name)
-                                direkt_link = f"https://www.flaschenland.de/{bereinigter_name}-{nummer}"
+                            if name:
+                                # URL-konforme Encodierung für die Onlineshop-Suche (z.B. Leerzeichen zu %20)
+                                such_begriff = urllib.parse.quote(name)
+                                live_shop_link = f"https://flaschenland.de{such_begriff}"
                                 
-                                # Schöne Darstellung auf dem iPhone-Bildschirm
-                                st.markdown(f"**🔹 {name}** ({prozent}%)")
-                                st.write(f"**Artikelnummer:** {nummer}")
-                                st.write(f"**Begründung:** {grund}")
-                                st.markdown(f"[➡️ Direkt zum Produkt auf Flaschenland.de]({direkt_link})")
-                                st.write("---")
+                                # Anzeige als sauber formatierte Kachel auf dem iPhone
+                                with st.container():
+                                    st.markdown(f"#### 🔹 {name}")
+                                    if grund:
+                                        st.write(f"*{grund}*")
+                                    # Dieser Link führt nun direkt zur echten Suchergebnis-Seite im Shop
+                                    st.markdown(f"[🔍 Jetzt auf Flaschenland.de anzeigen]({live_shop_link})")
+                                    st.write("---")
                                 
                     erfolgreich = True
                     break
@@ -116,6 +103,6 @@ Grund: [Kurzer Satz zur Begründung]
                     continue
             
             if not erfolgreich:
-                st.error(f"Fehler bei der Analyse: {letzter_fehler}")
+                st.error(f"Fehler: {letzter_fehler}")
 else:
     st.info("Bitte tragen Sie oben Ihren Gemini API Key ein, um den Scanner zu starten.")
